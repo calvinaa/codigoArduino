@@ -1,0 +1,82 @@
+#include "FirebaseESP8266.h" 
+#include <ESP8266WiFi.h>
+#define FIREBASE_HOST "tc1004-81ee9-default-rtdb.firebaseio.com" 
+#define FIREBASE_AUTH "wKbfXZsAVJNvycevWl5pFgITFLH65uSRxVSof6xi"
+#define WIFI_SSID "Totalplay-1BA4"
+#define WIFI_PASSWORD "1BA483C923aj3Uxy"
+#include <Servo.h>
+Servo servo;
+
+FirebaseData firebaseData; //variable firebaseData
+FirebaseData ledData;   //variable ledData
+FirebaseJson json;          //variablejson
+
+const int trigPin = 13;
+const int echoPin = 12;
+
+//define sound velocity in cm/uS
+#define SOUND_VELOCITY 0.034
+#define CM_TO_INCH 0.393701
+
+long duration;
+float distanceCm;
+float distanceInch;
+
+void setup() {
+  servo.attach(16);  
+  servo.write(0);
+  Serial.begin(9600); // Starts the serial communication
+  pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
+  pinMode(echoPin, INPUT); // Sets the echoPin as an Input
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD); //inicializa la conexion wifi, configura la bilbioteca wifi
+  Serial.print("Connecting to Wi-Fi -->"); //impresion de pantalla 
+  Serial.print(WIFI_SSID); Serial.println(" ..."); //impresion de pantalla del WIFI_SSID proporcionado y "..."
+
+  int teller = 0; //variable teller que funcionara como contador
+  while (WiFi.status() != WL_CONNECTED) //un while  del estado de conexion sea diferente cuando ya se conecta
+  {
+      delay(1000); //tiempo de espera de 1000 ms
+      Serial.print(++teller); Serial.print(' '); //impresion de pantalla del contador y un espacio (sirve como tiempo de espera de conexion)
+  }
+
+  Serial.println('\n'); //impresion con salto de linea
+  Serial.println("WiFi conectado!");  //imprime que la wifi se conecto
+  Serial.print("IP address:\t");     //imprime lo que contiene y hace un tab
+  Serial.println(WiFi.localIP());    //imprime la IP 
+
+  //inicializa la conexion con la base de datos con las credenciales proporcionadas
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH); 
+  Firebase.reconnectWiFi(true); //
+  delay(10);
+}
+
+
+void loop() {
+  // Clears the trigPin
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration = pulseIn(echoPin, HIGH);
+  
+  // Calculate the distance
+  distanceCm = duration * SOUND_VELOCITY/2;
+  
+  // Prints the distance on the Serial Monitor
+  if(distanceCm>30){
+    Firebase.setFloat(firebaseData,"/SensorUltrasonico",distanceCm); //envia el valor numero que se tiene de lecturaSensorA0
+    Serial.println(distanceCm); //imprime el valor de lectura
+    Serial.print("Abrir Puerta");
+    servo.write(180);
+    delay(100);
+  }else{
+    Firebase.setFloat(firebaseData,"/SensorUltrasonico",distanceCm); //envia el valor numero que se tiene de lecturaSensorA0
+    Serial.println(distanceCm); //imprime el valor de lectura
+    Serial.print("Cerrar Puerta");
+    servo.write(0);
+  }
+}
