@@ -1,0 +1,89 @@
+#include "FirebaseESP8266.h" 
+#include <ESP8266WiFi.h>
+#define FIREBASE_HOST "tc1004-81ee9-default-rtdb.firebaseio.com" 
+#define FIREBASE_AUTH "wKbfXZsAVJNvycevWl5pFgITFLH65uSRxVSof6xi"
+#define WIFI_SSID "bojorquez"
+#define WIFI_PASSWORD "69696969"
+#define RELE_PIN 16
+
+FirebaseData firebaseData; //variable firebaseData
+FirebaseData ledData;   //variable ledData
+FirebaseJson json;          //variablejson
+
+const int s0 = 5;
+const int s1 = 4;
+const int s2 = 0;
+const int s3 = 2;
+const int out = 14;
+byte countRed = 0;
+byte countGreen = 0;
+byte countBlue = 0;
+void setup() {
+    // Configurar pines
+   pinMode( RELE_PIN, OUTPUT );
+   digitalWrite(RELE_PIN, LOW); // apagar lampara
+   Serial.begin(9600);
+   pinMode(s0, OUTPUT);
+   pinMode(s1, OUTPUT);
+   pinMode(s2, OUTPUT);
+   pinMode(s3, OUTPUT);
+   pinMode(out, INPUT);
+   digitalWrite(s0, HIGH);
+   digitalWrite(s1, HIGH);
+   WiFi.begin(WIFI_SSID, WIFI_PASSWORD); //inicializa la conexion wifi, configura la bilbioteca wifi
+   Serial.print("Connecting to Wi-Fi -->"); //impresion de pantalla 
+   Serial.print(WIFI_SSID); Serial.println(" ..."); //impresion de pantalla del WIFI_SSID proporcionado y "..."
+
+   int teller = 0; //variable teller que funcionara como contador
+   while (WiFi.status() != WL_CONNECTED) //un while  del estado de conexion sea diferente cuando ya se conecta
+   {
+    delay(1000); //tiempo de espera de 1000 ms
+    Serial.print(++teller); Serial.print(' '); //impresion de pantalla del contador y un espacio (sirve como tiempo de espera de conexion)
+   }
+  
+
+   Serial.println('\n'); //impresion con salto de linea
+   Serial.println("WiFi conectado!");  //imprime que la wifi se conecto
+   Serial.print("IP address:\t");     //imprime lo que contiene y hace un tab
+   Serial.println(WiFi.localIP());    //imprime la IP 
+
+   //inicializa la conexion con la base de datos con las credenciales proporcionadas
+   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH); 
+   Firebase.reconnectWiFi(true); //
+   delay(10);
+}
+void loop() {
+   getColor();
+   Serial.print("Red: ");
+   Serial.print(countRed, DEC);
+   Serial.print("Green: ");
+   Serial.print(countGreen, DEC);
+   Serial.print("Blue: ");
+   Serial.print(countBlue, DEC);
+   if (countRed < countBlue && countGreen > 100 && countRed < 80)
+   {
+      Firebase.setFloat(firebaseData,"/SensorColor",countRed); //envia el valor numero que se tiene de lecturaSensorA0
+      digitalWrite(RELE_PIN, LOW);
+      Serial.println(" - Red");
+   }
+   else if (countGreen < countRed && countGreen < countBlue)
+   {
+      Firebase.setFloat(firebaseData,"/SensorColor",countGreen); //envia el valor numero que se tiene de lecturaSensorA0
+      Serial.println(" - Green");
+      digitalWrite(RELE_PIN, HIGH);
+   }
+   else {
+      Serial.println("-");
+   }
+   delay(300);
+}
+void getColor()
+{
+   digitalWrite(s2, LOW);
+   digitalWrite(s3, LOW);
+   countRed = pulseIn(out, digitalRead(out) == HIGH ? LOW : HIGH);
+   digitalWrite(s3, HIGH);
+   countBlue = pulseIn(out, digitalRead(out) == HIGH ? LOW : HIGH);
+   digitalWrite(s2, HIGH);
+   countGreen = pulseIn(out, digitalRead(out) == HIGH ? LOW : HIGH);
+}
